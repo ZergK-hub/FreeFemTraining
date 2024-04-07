@@ -1,0 +1,78 @@
+int labelR=15;
+border GammaCircle(t=0,2*pi){
+    x=cos(t);
+    y=sin(t);
+    label=labelR;
+}
+
+int n=50;
+mesh Th1=buildmesh(GammaCircle(n));
+plot(Th1);
+
+string meshFilenameMsh = "Th1.msh";
+string meshFilenameGeo="Th1.geo";
+string meshFilenameH5="Th1.h5";
+
+savemesh (Th1, meshFilenameGeo);
+
+mesh Th2=readmesh(meshFilenameMsh);
+
+plot(Th2);
+
+load "gmsh"
+
+string meshFilenameGMSH="Th3.msh2";
+mesh Th3 = gmshload(meshFilenameGMSH);
+plot(Th3);
+
+/* Movemesh */
+func uu = sin(y*pi)/10;
+func vv = cos(x*pi)/10;
+
+real coef =10;
+/* mesh Th4 = movemesh(Th1,
+    [x+coef*uu,y+coef*vv]
+
+);
+
+plot (Th4); */
+
+real minArea= checkmovemesh (
+
+    Th1,
+    [x+coef*uu,y+coef*vv]
+
+
+);
+
+cout<< "min Area = "<< minArea <<endl;
+
+/* Adaptmesh*/
+
+fespace Vh (Th1,P1);
+Vh u,v, f;
+
+real error = 0.1;
+
+
+
+for (int i =0; i<15; i++)
+{
+    f = 1.0 / sqrt (x^2+y^2);
+    Th1 = adaptmesh (
+        Th1,
+        f,
+        err=error,
+        nbvx=1500,
+        hmin=0.01,
+        hmax=0.1,
+        iso=true
+    );
+    u=u; /*interpolate to new mesh*/
+    cout << "u[].n = " << u[].n << endl; // лайфхак: проверяем, меняется ли это число! если да, то переинтерполяция корректна 
+    v=v; /*interpolate to new mesh*/
+    error=error/2;
+    plot(Th1, f, fill=0, dim=3, wait=1, value=1, nbiso=50);
+}
+
+    

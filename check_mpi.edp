@@ -1,0 +1,2 @@
+//mpiexec.exe -n 2 FreeFem++-mpi.exe .\check_mpi.edp
+cout << "mpirank" << mpirank << endl;

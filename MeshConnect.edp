@@ -1,0 +1,108 @@
+/* Mesh connectivity */
+
+int nx = 5;
+int ny = 10;
+
+real x0= -2.0;
+real x1= 3.0;
+real y0= -1.0;
+real y1= 4.0;
+
+mesh Th1=square(nx,ny,
+    [x0+(x1-x0)*x, y0+(y1-y0)*y]
+
+);
+
+plot(Th1);
+
+/* Basic mesh info */
+
+int nbVerticies = Th1.nv; /* number of verticies*/ 
+int nbTriangles = Th1.nt; /* number of triangles*/
+int nbBoundaryElement = Th1.nbe; /* number of boundary eges*/
+
+cout << "nbVerticies = "<<nbVerticies<<endl;
+cout << "nbTriangles = "<<nbTriangles<<endl;
+cout << "nbBoundaryElement = "<<nbBoundaryElement<<endl;
+
+/* Vertex */
+int iv = 0;
+cout << "Vertex #"  << iv << "x,y = " <<Th1(iv).x<<" "<<Th1(iv).y<<endl;
+
+/*Triangles*/
+int it=4;
+cout<< "Area = "<<Th1[it].area<<endl;
+cout<< "Region = "<<Th1[it].region <<endl;
+for (int ivloc=0; ivloc<3; ivloc++)
+{
+    int ivglob = Th1[it][ivloc];
+    cout<<ivglob<<": "<<
+    Th1[it][ivloc].x<<"  "<<
+    Th1[it][ivloc].y<<endl;
+}
+/* Boundary edges */
+int ibe=5;
+
+int ivglob0=Th1.be(ibe)[0];// .x, .y
+int ivglob1=Th1.be(ibe)[1];
+int labelCurrent = Th1.be(ibe).label;
+
+/* Adjacent triangle to ibe edge*/
+int itAdj1= Th1.be(ibe).Element;
+int itAdj2= Th1.be(ibe).Element[0]; /*first node in triangle*/
+int itAdj3= Th1.be(ibe).Element[0].x;
+
+int iEdgeLoc = Th1.be(ibe).whoinElement;
+
+
+/* For loop compound mesh */
+
+real[int] xRect=[0,1,1,0];
+real[int] yRect=[0,0,1,1];
+
+int[int] nRect=[4,4,5,7]*4;
+int labelRect=0;
+
+real[int] rCircle=[0.1,0.05,0.05,0.1];
+real[int] xCircle=[0.2,0.8,0.2,0.8];
+real[int] yCircle=[0.2,0.8,0.8,0.2];
+int[int] nCircle=[-10,-11,-12,13]*5;
+int[int] labelCircle=[1,2,3,4];
+
+/*Circles boundary*/
+border GammaCircles(t=0, 2*pi;i){
+
+    x=rCircle[i]*cos(t)+xCircle[i];
+    y=rCircle[i]*sin(t)+yCircle[i];
+    label =labelCircle[i];
+
+
+}
+
+/* Rectangle border */
+border GammaRect (t=0,1; i){
+
+    int iNext=(i+1)%nRect.n;
+    real t1=1-t;
+    x=xRect[i]*t1+xRect[iNext]*t;
+    y=yRect[i]*t1+yRect[iNext]*t;
+    label=labelRect;
+}
+
+mesh Th3 = buildmesh(GammaRect(nRect)+ GammaCircles(nCircle));
+
+plot(Th3);
+
+cout<< "Region = " << Th3(xCircle[3],yCircle[3]).region <<endl;
+
+/* Change region */
+int [int] regionChange=[3,40];
+
+Th3=change(Th3, region=regionChange);
+
+cout<< "Region = " << Th3(xCircle[3],yCircle[3]).region <<endl;
+
+fespace Vh0(Th3,P0);
+Vh0 YoungModulus = 30e9*(region==40)+14e9*(region==0);
+
+plot (Th3, YoungModulus, fill=1);

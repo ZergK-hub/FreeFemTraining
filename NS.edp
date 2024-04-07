@@ -1,0 +1,116 @@
+/* Domain geometry */
+real h = 0.5; /* [m], Height of the step */
+real H = 1.5; /* [m], Height of the tube */
+real l = 3;   /* [m], Length of the step */
+real L = 10;  /* [m], Length of the tube */
+
+real mu = 1e-3; /* [Pa*s], Dynamic viscosity */
+real rho = 1e3; /* [kg/m^3], Density */
+/* For Um = 0.0005  Newton method doesn't converges. But Pichard's method does */ 
+real Um = 0.0001; /* [m/s], Mean inlet velocity */ 
+func uin = 6.0 * Um * (H - y) * (y - h) / ((H-h)^3); /* [m/s], Parabolic profile */
+
+/* Mesh definition */
+int n = 100;
+
+real[int] xP = [0, l, l, L, L, 0];
+real[int] yP = [h, h, 0, 0, H, H];
+int[int] nGamma = [l/L, h/L, (L-l)/L, H/L, L/L, (H-h)/L]*n;
+
+int labelInlet = 1;
+int labelWall = 2;
+int labelOutlet = 3;
+int[int] labelGamma = [labelWall, labelWall, labelWall, labelOutlet, labelWall, labelInlet]; 
+
+/* Backward step boundary */
+border GammaDomain( t=0.0, 1.0; i) 
+{
+  /* i is the the index variable of the multi border loop */
+  int iNext = (i+1)%nGamma.n; 
+  real t1 = 1-t;
+  x =  xP[i]*t1 + xP[iNext]*t;
+  y =  yP[i]*t1 + yP[iNext]*t;
+  label = labelGamma[i];
+}
+
+mesh Th = buildmesh(GammaDomain(nGamma));
+
+plot(Th);
+
+/*Differential operators*/
+
+macro grad(u)[dx(u),dy(u)]// EOM
+macro gradVec(u1,u2)[dx(u1),dy(u1),dx(u2),dy(u2)]// EOM
+macro uGradV(u1,u2,v1,v2)
+[
+    [u1,u2]'*grad(v1),
+    [u1,u2]'*grad(v2)
+
+]// EOM
+
+macro div(u1,u2)(dx(u1)+dy(u2))// EOM
+
+/*Finite Element space definition*/
+fespace Vh(Th,[P2,P2,P1]);
+fespace Vh2(Th,P2);
+fespace Vh1(Th,P1);
+
+Vh [u,v,p];
+Vh [du,dv,dp];
+Vh [psi1, psi2, q];
+
+solve Stocks( [u,v,p],[psi1,psi2,q])=
+    int2d(Th)(
+        mu*(gradVec(u,v)'*gradVec(psi1,psi2))
+        -p*div(psi1,psi2)
+        -q*div(u,v)
+
+    )
+    +on(labelInlet, u=uin,v=0)
+    +on(labelWall, u=0, v=0)
+    +on (labelOutlet,v=0);
+
+plot(Th, u, dim=2,value=1, nbiso=50, fill=1);
+
+int iIter =0;
+
+int nIterMax=7;
+
+real penalty=1e-10; /* eps*/
+
+problem NavierStocks( [du,dv,dp],[psi1,psi2,q])=
+    int2d(Th)(
+        mu*(gradVec(du,dv)'*gradVec(psi1,psi2))
+        +rho*uGradV(u,v,du,dv)'*[psi1,psi2]
+        +rho*uGradV(du,dv,u,v)'*[psi1,psi2]
+        -dp*div(psi1,psi2)
+        -q*div(du,dv) -penalty*dp*q
+    )
+    +int2d(Th)(
+        mu*(gradVec(u,v)'*gradVec(psi1,psi2))
+        +rho*uGradV(u,v,u,v)'*[psi1,psi2]
+        -p*div(psi1,psi2)
+        -q*div(u,v)-penalty*p*q
+
+    )
+    +on(labelInlet, du=0, dv=0)
+    +on(labelWall, du=0, dv=0)
+    +on (labelOutlet,dv=0);
+
+
+real tolerance=1e-5;
+real relError=1;
+while ((relError>tolerance)&&(iIter < nIterMax)){
+    NavierStocks;
+
+    u[]+=du[]; /*applicable to all u, v, p*/
+
+    relError=sqrt(int2d(Th)(du^2+dv^2))/sqrt(int2d(Th)(u^2+v^2));
+
+    cout<<"relError = "<< relError <<endl;
+
+    plot(Th, u, dim=2,value=1, nbiso=50, fill=1);
+
+    iIter++;
+
+}

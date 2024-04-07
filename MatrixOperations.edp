@@ -1,0 +1,87 @@
+/* Dense matrix */
+
+real[int, int] A(2,2); /*2D array*/
+
+A=[[1,3],[6,0]];
+/*A(0,0)=5;*/
+
+cout << A <<endl;
+
+real [int][int] B(3);/* different length of cols*/
+B[0].resize(4);
+B[0][2]=3;
+
+cout<<B<<endl;
+
+/*Sparse matrix*/
+
+matrix spA = A; /* only non-zero*/
+matrix spAT=spA'; /*Transpose*/
+matrix spASquared = spA*spA;
+matrix spEmpty; /* empty matrix*/ 
+
+matrix spASum = 0.5*spA+spAT+0.3*spEmpty;
+
+/*Matrix output*/
+cout<<"spA: "<<endl<<spA;
+load "MUMPS_seq"
+verbosity=5;
+//sparsesolver default - UMFPACK
+set (spA, solver=sparsesolver, sym=0);/*make symmetric matrix "SPARSESOLVERSYM"*/
+cout << "spA" <<endl<<spA;
+
+real[int] b1=[3,5];
+real[int] xx=spA^-1*b1;
+
+cout<< "**************** "<<xx<<endl;
+
+/* COO format*/
+
+real[int] C; /* Non-zero elements*/
+int[int] I; /* Row indices*/
+int[int] J; /* Column indicies*/
+
+[I,J,C]=spA; /* parse matrix spA to 3 vectors*/
+
+int nnz = spA.nnz; /*number of non-zero elements*/
+
+C.resize(2);
+I.resize(2);
+J.resize(2);
+
+matrix spACut=[I,J,C];
+spACut.resize(3,4);
+cout<<spACut;
+cout<<spACut.n;
+cout<<spACut.m;
+
+real [int] diagA=spA.diag;
+diagA[1]=9;
+
+/* Diagonal matrix*/
+matrix spDiagA=[diagA];
+
+/* Identity */
+matrix spIdent = eye(5);
+
+/* Trace */
+
+cout<<"Trace spA = "<< spA.trace<<endl;
+
+/* Block matrix*/
+
+matrix blockSp= [
+    [spA,spASquared'],
+    [spASquared, spDiagA]
+
+];
+
+cout << blockSp;
+
+load "lapack"
+
+real [int, int] Ainv=A^-1;
+cout<<Ainv;
+
+/* Clear*/
+spA.clear;
